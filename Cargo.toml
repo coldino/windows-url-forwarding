@@ -1,0 +1,23 @@
+[package]
+name = "url_ferry"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "url-ferry-listener"
+path = "src/listener.rs"
+
+[[bin]]
+name = "url-ferry-sender"
+path = "src/sender.rs"
+
+[dependencies]
+winreg = "0.52"
+windows = { version = "0.52", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_Threading", "Win32_UI_Shell", "Win32_System_Com", "Win32_Security", "Win32_System_IO"] }
+clap = { version = "4.4", features = ["derive"] }
+chrono = "0.4"
+
+[profile.release]
+lto = true
+opt-level = 3
+strip = true
