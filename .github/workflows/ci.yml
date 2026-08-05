@@ -95,7 +95,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: dist
+          path: |
+            dist/url-ferry-listener.exe
+            dist/url-ferry-sender.exe
+            dist/README.md
+            dist/LICENSE
 
       - name: Create draft release and upload zip
         if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
