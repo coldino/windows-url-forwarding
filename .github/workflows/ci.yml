@@ -1,0 +1,107 @@
+name: CI and Release
+
+on:
+  push:
+    branches:
+      - main
+      - trunk
+    tags:
+      - "v*.*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag to release (example: v0.2.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  test-build-package-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' && github.event.inputs.tag || github.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build output
+        uses: Swatinem/rust-cache@v2
+
+      - name: Fail early if tag does not match Cargo.toml version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = (cargo metadata --format-version=1 --no-deps | ConvertFrom-Json).packages[0].version
+          $expectedTag = "v$version"
+
+          if ($tag -ne $expectedTag) {
+            Write-Error "Tag '$tag' does not match Cargo.toml version '$version' (expected '$expectedTag')."
+            exit 1
+          }
+
+          Write-Host "Tag/version check passed: $tag"
+
+      - name: Run tests
+        run: cargo test --all-targets --locked
+
+      - name: Build release binaries
+        run: cargo build --release --locked
+
+      - name: Create release zip
+        id: package
+        shell: pwsh
+        run: |
+          $version = (cargo metadata --format-version=1 --no-deps | ConvertFrom-Json).packages[0].version
+
+          $isTagPush = "${{ startsWith(github.ref, 'refs/tags/') }}" -eq "true"
+          $manualTag = "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || '' }}"
+
+          if ($isTagPush) {
+            $tagName = "${{ github.ref_name }}"
+            $archiveLabel = $tagName
+          } elseif ($manualTag -ne "") {
+            $tagName = $manualTag
+            $archiveLabel = $tagName
+          } else {
+            $tagName = ""
+            $archiveLabel = "v$version"
+          }
+
+          $zipName = "url-ferry-$archiveLabel-windows-x64.zip"
+
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item target/release/url-ferry-listener.exe dist/
+          Copy-Item target/release/url-ferry-sender.exe dist/
+          Copy-Item README.md dist/
+          Copy-Item LICENSE dist/
+
+          if (Test-Path "dist/$zipName") {
+            Remove-Item "dist/$zipName" -Force
+          }
+
+          Compress-Archive -Path dist/url-ferry-listener.exe, dist/url-ferry-sender.exe, dist/README.md, dist/LICENSE -DestinationPath "dist/$zipName"
+          "tag_name=$tagName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "zip_path=dist/$zipName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload packaged zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-zip
+          path: ${{ steps.package.outputs.zip_path }}
+
+      - name: Create draft release and upload zip
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag_name }}
+          draft: true
+          generate_release_notes: true
+          files: ${{ steps.package.outputs.zip_path }}
