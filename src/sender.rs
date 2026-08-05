@@ -35,8 +35,13 @@ fn register_protocol_handler() -> Result<()> {
     let exe_path = get_exe_path()?;
     let exe_path_str = exe_path.to_string_lossy().to_string();
     let handler_path = format!("\"{}\" \"%1\"", exe_path_str);
+    let icon_path = format!("\"{}\",0", exe_path_str);
 
     let hkcu = RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+
+    // Remove any legacy direct protocol overrides from earlier versions.
+    let _ = hkcu.delete_subkey_all("Software\\Classes\\http\\shell\\open\\command");
+    let _ = hkcu.delete_subkey_all("Software\\Classes\\https\\shell\\open\\command");
 
     // 1. Register in App Paths
     let (app_paths_key, _) = hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\url-ferry-sender.exe")
@@ -47,6 +52,8 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set UseUrl: {:?}", e)))?;
     app_paths_key.set_value("SupportedProtocols", &"http:https".to_string())
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set SupportedProtocols: {:?}", e)))?;
+    app_paths_key.set_value("DefaultIcon", &icon_path)
+        .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon in App Paths: {:?}", e)))?;
 
     // 2. Create ProgIDs for http and https
     // HTTP ProgID
@@ -54,6 +61,8 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create http ProgID: {:?}", e)))?;
     http_progid_key.set_value("URL Protocol", &"".to_string())
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set URL Protocol: {:?}", e)))?;
+    http_progid_key.set_value("DefaultIcon", &icon_path)
+        .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon for http: {:?}", e)))?;
     
     let (http_shell_open, _) = hkcu.create_subkey("Software\\Classes\\url-ferry.http\\shell\\open\\command")
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create http shell command: {:?}", e)))?;
@@ -65,6 +74,8 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create https ProgID: {:?}", e)))?;
     https_progid_key.set_value("URL Protocol", &"".to_string())
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set URL Protocol: {:?}", e)))?;
+    https_progid_key.set_value("DefaultIcon", &icon_path)
+        .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon for https: {:?}", e)))?;
     
     let (https_shell_open, _) = hkcu.create_subkey("Software\\Classes\\url-ferry.https\\shell\\open\\command")
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create https shell command: {:?}", e)))?;
@@ -78,6 +89,8 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set ApplicationName: {:?}", e)))?;
     capabilities_key.set_value("ApplicationDescription", &"Forward http/https from DiscordUser to the main user's browser.".to_string())
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set ApplicationDescription: {:?}", e)))?;
+    capabilities_key.set_value("DefaultIcon", &icon_path)
+        .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon in Capabilities: {:?}", e)))?;
 
     // Create UrlAssociations subkey
     let (url_assoc_key, _) = hkcu.create_subkey("Software\\UrlFerry\\Capabilities\\UrlAssociations")
@@ -105,6 +118,8 @@ fn unregister_protocol_handler() -> Result<()> {
         "Software\\Classes\\url-ferry.http",
         "Software\\Classes\\url-ferry.https",
         "Software\\UrlFerry",
+        "Software\\Classes\\http\\shell\\open\\command",
+        "Software\\Classes\\https\\shell\\open\\command",
     ];
 
     for entry in entries_to_delete {
