@@ -154,3 +154,15 @@ This will open the URL in your default browser (on the listener's user account) 
 ## License
 
 MIT
+
+## Release Process
+
+Ensure you have the `cargo-release` tool installed:
+```
+cargo install cargo-release
+```
+Then release with:
+```
+cargo release [patch|minor|major] --sign --no-publish
+```
+The CI workflow will automatically test and build the release artifacts, and upload them to a draft release.
