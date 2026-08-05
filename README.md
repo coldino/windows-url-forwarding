@@ -1,6 +1,6 @@
 # URL Ferry
 
-A two-part solution for forwarding HTTP/HTTPS links from Discord (running as a different Windows user) to your main user, so links open in your default browser on the main user instead.
+A two-part solution for forwarding HTTP/HTTPS links from Discord (when running as a different Windows user) to your main user, so links open in your default browser on the main user instead.
 
 ## Architecture
 
@@ -19,6 +19,10 @@ A two-part solution for forwarding HTTP/HTTPS links from Discord (running as a d
    - Also runs as GUI (no console)
 
 ## Installation & Setup
+
+### Installation
+
+1. Put both binaries in a folder accessible to both users (e.g., `C:\Program Files\URL Ferry`).
 
 ### Main User Side
 
@@ -44,15 +48,16 @@ A two-part solution for forwarding HTTP/HTTPS links from Discord (running as a d
 
 ### DiscordUser Side
 
-1. Register the sender as the default handler for http/https:
+1. Register the sender as the default handler for http/https. Open a terminal (Command Prompt or PowerShell) as your main user and run:
 
    ```
-   url-ferry-sender.exe --register
+   runas /user:DiscordUser "url-ferry-sender.exe --register"
    ```
+   You will be prompted for the DiscordUser's password.
 
-   This updates the DiscordUser's registry to route `http://` and `https://` links to the sender.
+2. Switch to DiscordUser in order to change the default protocol handler for `http` and `https`. Do this in Settings > Apps > Default Apps > Choose default apps by protocol, and set the `http` and `https` protocols to use `url-ferry-sender`. This is necessary because the protocol registration requires user consent.
 
-2. Test it: Click any HTTP/HTTPS link in Discord. It should open in your main user's default browser.
+3. Test it: Click any HTTP/HTTPS link in Discord. It should open in your main user's default browser.
 
 ## Uninstallation
 
@@ -63,7 +68,7 @@ url-ferry-listener.exe --uninstall
 
 ### DiscordUser
 ```
-url-ferry-sender.exe --unregister
+runas /user:DiscordUser "url-ferry-sender.exe --unregister"
 ```
 
 ## Protocol Details
@@ -84,7 +89,6 @@ url-ferry-sender.exe --unregister
 - The named pipe is accessible to the Users group (read/write permissions).
 - No URL filtering beyond protocol validation.
 - URLs are sent in plaintext over the named pipe (secure only because DiscordUser and main user are on the same machine).
-- No privilege escalation possible.
 
 ## Building from Source
 
@@ -136,14 +140,14 @@ Expected output: `✓ URL sent to listener: https://example.com`
 This will open the URL in your default browser (on the listener's user account) without needing Discord or protocol registration.
 
 **Listener closes immediately:**
-- This shouldn't happen; if it does, run it manually to see error output.
+- This shouldn't happen; if it does, run it manually to see error output and/or enable logging to capture issues.
 
 **Error notifications appear when clicking links:**
 - The listener probably isn't running. Start it manually or reboot (it should be in autorun).
 
 ## Performance
 
-- Binary sizes: ~600KB each
+- Binary sizes: ~1MB each
 - Startup time: <100ms
 - URL forwarding: <50ms typical latency
 
