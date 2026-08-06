@@ -17,6 +17,9 @@ use windows::Win32::Security::*;
 use windows::core::PCWSTR;
 use winreg::RegKey;
 
+const AUTORUN_VALUE_NAME: &str = "URL Ferry Listener";
+const LEGACY_AUTORUN_VALUE_NAME: &str = "URLForwarder";
+
 #[derive(Parser, Debug)]
 #[command(name = "url-ferry-listener")]
 #[command(about = "Listen for URLs from url-ferry-sender and launch them", long_about = None)]
@@ -62,7 +65,8 @@ fn install_autorun() -> Result<()> {
     let (run_key, _) = hkcu.create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
         .map_err(|e| UrlFerryError::RegistryError(format!("{:?}", e)))?;
 
-    run_key.set_value("URLForwarder", &exe_path.to_string_lossy().to_string())
+    let _ = run_key.delete_value(LEGACY_AUTORUN_VALUE_NAME);
+    run_key.set_value(AUTORUN_VALUE_NAME, &exe_path.to_string_lossy().to_string())
         .map_err(|e| UrlFerryError::RegistryError(format!("{:?}", e)))?;
 
     Ok(())
@@ -70,10 +74,21 @@ fn install_autorun() -> Result<()> {
 
 fn uninstall_autorun() -> Result<()> {
     let hkcu = RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
-    let run_key = hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+    let run_key = hkcu.open_subkey_with_flags(
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        winreg::enums::KEY_SET_VALUE,
+    )
         .map_err(|e| UrlFerryError::RegistryError(format!("{:?}", e)))?;
-    run_key.delete_value("URLForwarder")
-        .map_err(|e| UrlFerryError::RegistryError(format!("{:?}", e)))?;
+
+    let removed_current = run_key.delete_value(AUTORUN_VALUE_NAME).is_ok();
+    let removed_legacy = run_key.delete_value(LEGACY_AUTORUN_VALUE_NAME).is_ok();
+
+    if !removed_current && !removed_legacy {
+        return Err(UrlFerryError::RegistryError(
+            "Autorun entry was not found".to_string(),
+        ));
+    }
+
     Ok(())
 }
 
