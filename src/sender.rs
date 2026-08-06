@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod common;
 
 use clap::Parser;
@@ -63,7 +65,7 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set URL Protocol: {:?}", e)))?;
     http_progid_key.set_value("DefaultIcon", &icon_path)
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon for http: {:?}", e)))?;
-    
+
     let (http_shell_open, _) = hkcu.create_subkey("Software\\Classes\\url-ferry.http\\shell\\open\\command")
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create http shell command: {:?}", e)))?;
     http_shell_open.set_value("", &handler_path)
@@ -76,7 +78,7 @@ fn register_protocol_handler() -> Result<()> {
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set URL Protocol: {:?}", e)))?;
     https_progid_key.set_value("DefaultIcon", &icon_path)
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to set DefaultIcon for https: {:?}", e)))?;
-    
+
     let (https_shell_open, _) = hkcu.create_subkey("Software\\Classes\\url-ferry.https\\shell\\open\\command")
         .map_err(|e| UrlFerryError::RegistryError(format!("Failed to create https shell command: {:?}", e)))?;
     https_shell_open.set_value("", &handler_path)

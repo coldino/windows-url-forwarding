@@ -17,7 +17,7 @@ fn main() {
     // Tell cargo to rerun this script if either the .rc or .ico files change
     println!("cargo:rerun-if-changed=assets/url-ferry.rc");
     println!("cargo:rerun-if-changed=assets/url-ferry.ico");
-    
+
     // Use embed-resource crate to compile the Windows resource file
     // This will embed the icon in both binaries (listener and sender)
     // Pass empty vec for macros
