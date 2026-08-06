@@ -4,6 +4,7 @@ mod common;
 
 use clap::Parser;
 use common::{validate_url, get_exe_path, Result, PIPE_NAME, NUL_TERMINATOR, UrlFerryError};
+use std::io::Write;
 use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Storage::FileSystem::*;
@@ -214,8 +215,20 @@ fn show_error_notification(message: &str) {
     }
 }
 
+fn handle_arg_parse_error(err: clap::Error) -> ! {
+    let error_text = err.to_string();
+    let mut stderr = std::io::stderr();
+    let _ = stderr.write_all(error_text.as_bytes());
+    let _ = stderr.flush();
+    show_error_notification(&error_text);
+    std::process::exit(1);
+}
+
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = match Args::try_parse() {
+        Ok(args) => args,
+        Err(err) => handle_arg_parse_error(err),
+    };
 
     if args.register {
         register_protocol_handler()?;

@@ -12,7 +12,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Storage::FileSystem::*;
 use windows::Win32::System::Pipes::*;
 use windows::Win32::UI::Shell::ShellExecuteW;
-use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK, MB_SETFOREGROUND, SW_SHOW};
 use windows::Win32::Security::*;
 use windows::core::PCWSTR;
 use winreg::RegKey;
@@ -90,6 +90,33 @@ fn uninstall_autorun() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn show_error_notification(message: &str) {
+    unsafe {
+        let title = std::ffi::OsStr::new("URL Ferry Listener Error")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        let msg = std::ffi::OsStr::new(message)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+
+        let _ = MessageBoxW(
+            None,
+            PCWSTR(msg.as_ptr()),
+            PCWSTR(title.as_ptr()),
+            MB_ICONERROR | MB_OK | MB_SETFOREGROUND,
+        );
+    }
+}
+
+fn handle_arg_parse_error(err: clap::Error) -> ! {
+    let error_text = err.to_string();
+    eprint!("{}", error_text);
+    show_error_notification(&error_text);
+    std::process::exit(1);
 }
 
 unsafe fn create_named_pipe() -> Result<HANDLE> {
@@ -260,7 +287,10 @@ fn listen_loop(mut logger: Logger) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = match Args::try_parse() {
+        Ok(args) => args,
+        Err(err) => handle_arg_parse_error(err),
+    };
 
     if args.install {
         install_autorun()?;
