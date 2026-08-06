@@ -131,7 +131,10 @@ fn unregister_protocol_handler() -> Result<()> {
     }
 
     // Remove from RegisteredApplications
-    if let Ok(reg_apps_key) = hkcu.open_subkey("Software\\RegisteredApplications") {
+    if let Ok(reg_apps_key) = hkcu.open_subkey_with_flags(
+        "Software\\RegisteredApplications",
+        winreg::enums::KEY_SET_VALUE,
+    ) {
         let _ = reg_apps_key.delete_value("URL Ferry");
     }
 
